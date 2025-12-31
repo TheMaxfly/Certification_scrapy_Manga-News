@@ -8,16 +8,43 @@ from psycopg2.extras import execute_values
 from itemadapter import ItemAdapter
 from manga_news_scraper.utils.enrich_jsonl import enrich_item
 
-
 class EnrichPipeline:
+    # versions “lisibles” et stables pour tracer l'origine logique des fichiers
+    SERIES_SCHEMA_VERSION = "manganews:series:v1"
+    POPULAIRES_SCHEMA_VERSION = "manganews:populaires:v1"
+    ENRICH_VERSION = "enrich_item:v2"  # bump car on change la logique (slug + schema)
+
     def process_item(self, item, spider):
         data = ItemAdapter(item).asdict()
         data = enrich_item(data)
-        data.setdefault("schema_version", f"{spider.name}:v1")
-        data.setdefault("enrich_version", "enrich_item:v1")
+
+        # --- 1) Normalisation slug : garder UNE seule clé ---
+        # priorité à "serie_slug"
+        if "serie_slug" not in data and "series_slug" in data:
+            data["serie_slug"] = data.pop("series_slug")
+        # si les deux existent, on supprime l'ancienne / parasite
+        data.pop("series_slug", None)
+
+        # --- 2) Détection “populaires” ---
+        collection = (data.get("collection") or "").strip().lower()
+        is_populaires = (collection == "populaires") or spider.name.endswith("populaires")
+
+        # --- 3) schema/enrich/scraped_at (toujours renseignés) ---
+        data["schema_version"] = self.POPULAIRES_SCHEMA_VERSION if is_populaires else self.SERIES_SCHEMA_VERSION
+        data["enrich_version"] = self.ENRICH_VERSION
         data["scraped_at"] = dt.datetime.now(dt.timezone.utc).isoformat().replace("+00:00", "Z")
 
+        # --- 4) RAG indexability ---
+        if is_populaires:
+            # pas de résumé / texte => ne pas polluer l’index vectoriel
+            data["indexable_rag"] = False
+        else:
+            # sur "series", on laisse enrich_item décider si déjà présent,
+            # sinon on dérive depuis le texte dispo
+            data.setdefault("indexable_rag", bool(data.get("rag_text") or data.get("resume") or data.get("points_forts")))
+
         return data
+
 
 
 class ValidationError(Exception):
