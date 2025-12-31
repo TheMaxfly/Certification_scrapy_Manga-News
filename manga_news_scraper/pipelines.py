@@ -13,6 +13,10 @@ class EnrichPipeline:
     def process_item(self, item, spider):
         data = ItemAdapter(item).asdict()
         data = enrich_item(data)
+        data.setdefault("schema_version", f"{spider.name}:v1")
+        data.setdefault("enrich_version", "enrich_item:v1")
+        data["scraped_at"] = dt.datetime.now(dt.timezone.utc).isoformat().replace("+00:00", "Z")
+
         return data
 
 
