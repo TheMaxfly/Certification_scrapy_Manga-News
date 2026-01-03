@@ -20,6 +20,15 @@ pip install -r requirements.txt
 scrapy crawl manga_news -O data.json
 ```
 
+## Validation des JSONL (Great Expectations)
+
+```bash
+python validate_jsonl.py populaires.jsonl
+python validate_jsonl.py manganews_series.jsonl
+```
+
+Si le fichier ne contient pas "populaires" ou "series" dans son nom, utilisez `--schema populaires` ou `--schema series`.
+
 ## Structure
 
 - `scrapy.cfg` : configuration du projet Scrapy

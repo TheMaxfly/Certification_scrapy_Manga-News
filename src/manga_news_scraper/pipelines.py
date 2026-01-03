@@ -8,21 +8,44 @@ from psycopg2.extras import execute_values
 from itemadapter import ItemAdapter
 from manga_news_scraper.utils.enrich_jsonl import enrich_item
 
+import datetime as dt
+from itemadapter import ItemAdapter
+from manga_news_scraper.utils.enrich_jsonl import enrich_item
+
+
+def _truthy_text(x) -> bool:
+    if x is None:
+        return False
+    s = str(x).strip()
+    return s != "" and s.lower() != "nan"
+
+
+def _to_int_safe(x):
+    try:
+        if x is None:
+            return None
+        return int(float(x))  # gère "2014.0" etc.
+    except Exception:
+        return None
+
+
 class EnrichPipeline:
-    # versions “lisibles” et stables pour tracer l'origine logique des fichiers
-    SERIES_SCHEMA_VERSION = "manganews:series:v1"
-    POPULAIRES_SCHEMA_VERSION = "manganews:populaires:v1"
-    ENRICH_VERSION = "enrich_item:v2"  # bump car on change la logique (slug + schema)
+    # ⚠️ conseille d’unifier le style des versions.
+    # Comme tu valides "manganews.series.v1" côté manganews_series,
+    # je garde le format "dot" pour être cohérent avec tes attentes GX.
+    SERIES_SCHEMA_VERSION = "manganews.series.v1"
+    POPULAIRES_SCHEMA_VERSION = "manganews.populaires.v1"
+
+    # version de la logique d’enrichissement (traçabilité pipeline)
+    ENRICH_VERSION = "enrich_item:v2"
 
     def process_item(self, item, spider):
         data = ItemAdapter(item).asdict()
         data = enrich_item(data)
 
         # --- 1) Normalisation slug : garder UNE seule clé ---
-        # priorité à "serie_slug"
         if "serie_slug" not in data and "series_slug" in data:
             data["serie_slug"] = data.pop("series_slug")
-        # si les deux existent, on supprime l'ancienne / parasite
         data.pop("series_slug", None)
 
         # --- 2) Détection “populaires” ---
@@ -30,20 +53,48 @@ class EnrichPipeline:
         is_populaires = (collection == "populaires") or spider.name.endswith("populaires")
 
         # --- 3) schema/enrich/scraped_at (toujours renseignés) ---
-        data["schema_version"] = self.POPULAIRES_SCHEMA_VERSION if is_populaires else self.SERIES_SCHEMA_VERSION
+        data["schema_version"] = (
+            self.POPULAIRES_SCHEMA_VERSION if is_populaires else self.SERIES_SCHEMA_VERSION
+        )
         data["enrich_version"] = self.ENRICH_VERSION
         data["scraped_at"] = dt.datetime.now(dt.timezone.utc).isoformat().replace("+00:00", "Z")
 
         # --- 4) RAG indexability ---
         if is_populaires:
-            # pas de résumé / texte => ne pas polluer l’index vectoriel
+            # populaires = liste courte, pas de texte riche -> ne pas polluer l’index
             data["indexable_rag"] = False
         else:
-            # sur "series", on laisse enrich_item décider si déjà présent,
-            # sinon on dérive depuis le texte dispo
-            data.setdefault("indexable_rag", bool(data.get("rag_text") or data.get("resume") or data.get("points_forts")))
+            data.setdefault(
+                "indexable_rag",
+                bool(data.get("rag_text") or data.get("resume") or data.get("points_forts"))
+            )
+
+        # --- 5) Flags de cohérence (pour GX : CRITICAL vs WARNING) ---
+        rag_text = data.get("rag_text")
+        rag_char_len = data.get("rag_char_len") or 0
+        indexable_rag = bool(data.get("indexable_rag"))
+        data["rag_is_consistent"] = (not indexable_rag) or (_truthy_text(rag_text) and rag_char_len > 0)
+
+        has_resume = bool(data.get("has_resume"))
+        resume = data.get("resume")
+        data["resume_is_consistent"] = (not has_resume) or _truthy_text(resume)
+
+        # WARNING (non bloquant au début)
+        origin_has_year = bool(data.get("origin_has_year"))
+        origin_year_i = _to_int_safe(data.get("origin_year"))
+        current_year = dt.datetime.now(dt.timezone.utc).year
+        data["origin_year_is_realistic"] = (not origin_has_year) or (
+            origin_year_i is not None and 1950 <= origin_year_i <= current_year
+        )
+
+        data["genres_norm_is_list"] = isinstance(data.get("genres_norm"), list)
+
+        type_norm = data.get("type_norm")
+        type_raw = data.get("type")
+        data["type_is_present"] = _truthy_text(type_norm) or _truthy_text(type_raw)
 
         return data
+
 
 
 

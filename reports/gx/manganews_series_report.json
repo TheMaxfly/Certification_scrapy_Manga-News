@@ -1,0 +1,28 @@
+{
+  "critical": {
+    "failed_expectations": [],
+    "statistics": {
+      "evaluated_expectations": 11,
+      "success_percent": 100.0,
+      "successful_expectations": 11,
+      "unsuccessful_expectations": 0
+    },
+    "success": true
+  },
+  "dataset": "manganews_series",
+  "file": "data/enriched/manganews_series.backfilled.jsonl",
+  "git_commit": "efc2bfb3cea659ae884aa974d572bc3aaa09b30a",
+  "gx_version": "1.10.0",
+  "rows": 11415,
+  "run_at_utc": "2026-01-03T03:39:24.760698+00:00",
+  "warning": {
+    "failed_expectations": [],
+    "statistics": {
+      "evaluated_expectations": 4,
+      "success_percent": 100.0,
+      "successful_expectations": 4,
+      "unsuccessful_expectations": 0
+    },
+    "success": true
+  }
+}
