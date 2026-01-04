@@ -194,7 +194,7 @@ class MangaNewsSeriesSpider(scrapy.Spider):
             })
 
         item = {
-            "source": "manganews",
+            "source": "manga_news",
             "url": response.url,
             "title_page": (response.css("h1::text").get() or "").strip() or None,
 

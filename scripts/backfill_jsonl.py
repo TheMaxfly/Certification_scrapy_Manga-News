@@ -21,6 +21,15 @@ def to_int_safe(x):
         return None
 
 
+def normalize_source(value):
+    if value is None:
+        return None
+    s = str(value).strip()
+    if s in ("manganews", "manga_news"):
+        return "manga_news"
+    return s
+
+
 def backfill_record(rec: dict, *, file_kind: str) -> dict:
     # file_kind: "series" or "populaires"
     # 1) slug key cleanup
@@ -33,6 +42,9 @@ def backfill_record(rec: dict, *, file_kind: str) -> dict:
         rec["schema_version"] = "manganews.populaires.v1"
     else:
         rec["schema_version"] = "manganews.series.v1"
+
+    # 2b) source normalization
+    rec["source"] = normalize_source(rec.get("source"))
 
     # 3) scraped_at : ne pas écraser si déjà présent (important traçabilité)
     if not truthy_text(rec.get("scraped_at")):

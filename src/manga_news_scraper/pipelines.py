@@ -32,7 +32,7 @@ def _to_int_safe(x):
 class EnrichPipeline:
     # ⚠️ conseille d’unifier le style des versions.
     # Comme tu valides "manganews.series.v1" côté manganews_series,
-    # je garde le format "dot" pour être cohérent avec tes attentes GX.
+    # je garde le format "dot" pour être cohérent avec attentes GX.
     SERIES_SCHEMA_VERSION = "manganews.series.v1"
     POPULAIRES_SCHEMA_VERSION = "manganews.populaires.v1"
 

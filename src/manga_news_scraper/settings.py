@@ -37,6 +37,23 @@ JOBDIR = "job_state/manganews_series"
 # Exports
 FEED_EXPORT_ENCODING = "utf-8"
 
+def feed_uri_params(params, spider):
+    # Map spider -> fixed output filename.
+    name_map = {
+        "manganews_series": "manganews_series",
+        "manganews_populaires": "populaires",
+    }
+    params["feed_name"] = name_map.get(spider.name, spider.name)
+    return params
+
+FEED_URI_PARAMS = feed_uri_params
+FEEDS = {
+    "data/enriched/%(feed_name)s.jsonl": {
+        "format": "jsonlines",
+        "overwrite": True,
+    },
+}
+
 ITEM_PIPELINES = {
     "manga_news_scraper.pipelines.EnrichPipeline": 100,
 #    "manga_news_scraper.pipelines.MangaNewsPostgresPipeline": 300,
@@ -44,4 +61,3 @@ ITEM_PIPELINES = {
 
 POSTGRES_DSN = "dbname=apimanga user=postgres password=postgres host=127.0.0.1 port=5432"
 PG_BATCH_SIZE = 200
-
