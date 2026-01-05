@@ -162,7 +162,11 @@ def cleanup_staging(conn, run_id: uuid.UUID) -> None:
 
 def main() -> None:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--file", required=True, help="Chemin du JSONL (series.backfilled.jsonl)")
+    ap.add_argument(
+        "--file",
+        default="/home/maxime/certification/scrapping_manga-news/data/enriched/manganews_series.backfilled.jsonl",
+        help="Chemin du JSONL (series.backfilled.jsonl)",
+    )
     ap.add_argument("--dsn", default=os.getenv("POSTGRES_DSN"), help="DSN Postgres (sinon env POSTGRES_DSN)")
     ap.add_argument("--run-id", default=None, help="UUID à imposer (sinon généré)")
     ap.add_argument("--batch-size", type=int, default=500)
