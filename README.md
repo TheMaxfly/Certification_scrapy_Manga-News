@@ -1,6 +1,8 @@
 # Scraping Manga-News avec Scrapy
 
-Projet de base pour scraper le site Manga-News avec Scrapy. La structure est volontairement minimale pour servir de point de depart.
+Projet de pour scraper le site Manga-News avec Scrapy. Nettoyer, Valider , CICD, et importer en base.
+
+
 
 ## Prerequis
 
@@ -22,12 +24,60 @@ scrapy crawl manga_news -O data.json
 
 ## Validation des JSONL (Great Expectations)
 
+Validation + rapports GX (recommandee):
 ```bash
-python validate_jsonl.py populaires.jsonl
-python validate_jsonl.py manganews_series.jsonl
+python3 scripts/run_all_validations_gx110.py
 ```
 
-Si le fichier ne contient pas "populaires" ou "series" dans son nom, utilisez `--schema populaires` ou `--schema series`.
+Avec backfill automatique avant validation:
+```bash
+python3 scripts/run_all_validations_gx110.py --do-backfill
+```
+
+Scripts unitaires:
+```bash
+python3 scripts/validate_manganews_series_gx110.py --file data/enriched/manganews_series.jsonl
+python3 scripts/validate_populaires_gx110.py --file data/enriched/populaires.jsonl
+```
+
+
+## Pipeline complet (backfill + validation + import)
+
+tout en une commande :
+```bash
+python3 scripts/run_pipeline_backfill_validate_import.py
+```
+
+Options utiles:
+- `--no-backfill` : saute le backfill
+- `--skip-import` : ne fait que la validation
+- `--dsn` : override du DSN pour l'import
+
+## Import en base (run_prod_import.py)
+
+Prerequis:
+- `.env` a la racine avec `POSTGRES_DSN=...`
+- fichiers JSONL sources dans `data/enriched/` (manganews_series.jsonl, populaires.jsonl)
+
+Usage:
+```bash
+python3 scripts/run_prod_import.py --dataset series
+python3 scripts/run_prod_import.py --dataset populaires
+```
+
+Comportement par defaut:
+- lance backfill + validations GX (via `scripts/run_pipeline_backfill_then_validate.py`)
+- n'importe en base que si GX OK
+- utilise les fichiers backfilled par defaut
+- garde la staging et purge >30 jours
+
+Options utiles:
+- `--file` : importer un backfilled.jsonl specifique
+- `--skip-gx` : sauter la validation GX (si deja faite)
+- `--keep-days` : retention staging (defaut 30)
+- `--dsn` : override du DSN
+
+Note: `--file` n'affecte pas la validation GX (elle utilise les fichiers par defaut). Pour un fichier specifique, lance la validation au prealable puis `--skip-gx`.
 
 ## Structure
 
