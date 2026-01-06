@@ -5,10 +5,12 @@ import json
 import os
 import sys
 import uuid
+from pathlib import Path
 from typing import Any, Dict, List, Tuple
 
 import psycopg2
 from psycopg2.extras import execute_values, register_uuid
+from dotenv import load_dotenv
 
 
 SERIES_STAGING_TABLE = "manga.mn_series_staging"
@@ -161,6 +163,8 @@ def cleanup_staging(conn, run_id: uuid.UUID) -> None:
 
 
 def main() -> None:
+    dotenv_path = Path(__file__).resolve().parents[1] / ".env"
+    load_dotenv(dotenv_path=dotenv_path)
     ap = argparse.ArgumentParser()
     ap.add_argument(
         "--file",
@@ -171,7 +175,19 @@ def main() -> None:
     ap.add_argument("--run-id", default=None, help="UUID à imposer (sinon généré)")
     ap.add_argument("--batch-size", type=int, default=500)
     ap.add_argument("--no-merge", action="store_true", help="Charge staging uniquement (pas d'upsert final)")
-    ap.add_argument("--keep-staging", action="store_true", help="Ne supprime pas la staging du run_id")
+    ap.add_argument(
+        "--keep-staging",
+        dest="keep_staging",
+        action="store_true",
+        default=True,
+        help="Conserve la staging du run_id (par defaut)",
+    )
+    ap.add_argument(
+        "--no-keep-staging",
+        dest="keep_staging",
+        action="store_false",
+        help="Supprime la staging du run_id apres merge",
+    )
     args = ap.parse_args()
 
     if not args.dsn:
